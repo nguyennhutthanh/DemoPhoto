@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Drawing;
 using System.IO;
@@ -13,7 +14,7 @@ namespace DemoPhoto.Controllers
 	{
 		public IWebHostEnvironment host;
 		public DemoPhotoCS DemoPhotos;
-		public HomeController(IWebHostEnvironment _host)
+		public HomeController(IWebHostEnvironment _host , IConfiguration config)
 		{
 			host = _host;
 			DemoPhotos = new DemoPhotoCS();
@@ -28,7 +29,8 @@ namespace DemoPhoto.Controllers
 			//demo cho Resize
 			var path = Path.Combine(host.WebRootPath, "AnhResize",
 				DemoPhotos.GetUniqueFileName(file.FileName));
-			DemoPhotos.ResizeImage(file, path, 50, 0);
+			DemoPhotos.ResizeImageCent(file, path, 0.3);
+
 			//demo cho Compressing
 			string path01 = $"{Directory.GetCurrentDirectory()}" +
 				$"{@"\wwwroot\AnhCompress\" + DemoPhotos.GetUniqueFileName(file.FileName)}";

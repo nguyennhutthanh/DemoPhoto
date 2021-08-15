@@ -7,61 +7,36 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace DemoPhoto.Models
 {
 	public class DemoPhotoCS
 	{
-		private readonly int ImageMinimumBytes = 512;
 		public DemoPhotoCS() { }
+		public class ImageActive
+		{
+			public string PNG { get; set; }
+			public string JPG { get; set; }
+			public string JPEG { get; set; }
+			public string BMP { get; set; }
+			public string GIF { get; set; }
+			public string TIFF { get; set; }
+		}
 		/// <summary>
 		/// Check 1 file có phải là file ảnh hay không
 		/// </summary>
 		/// <param name="postedFile"> file</param>
 		/// <returns>true, false</returns>
+		/// 
 		public bool IsImage(IFormFile postedFile)
 		{
-			if (postedFile.ContentType.ToLower() != "image/jpg" &&
-				postedFile.ContentType.ToLower() != "image/jpeg" &&
-				postedFile.ContentType.ToLower() != "image/pjpeg" &&
-				postedFile.ContentType.ToLower() != "image/gif" &&
-				postedFile.ContentType.ToLower() != "image/x-png" &&
-				postedFile.ContentType.ToLower() != "image/png" &&
-				postedFile.ContentType.ToLower() != "image/bmp" &&
-				postedFile.ContentType.ToLower() != "image/tiff")
-			{
-				return false;
-			}
-			if (Path.GetExtension(postedFile.FileName).ToLower() != ".jpg" &&
-				Path.GetExtension(postedFile.FileName).ToLower() != ".png" &&
-				Path.GetExtension(postedFile.FileName).ToLower() != ".gif" &&
-				Path.GetExtension(postedFile.FileName).ToLower() != ".jpeg" &&
-				Path.GetExtension(postedFile.FileName).ToLower() != ".bmp" &&
-				Path.GetExtension(postedFile.FileName).ToLower() != ".tiff")
-			{
-				return false;
-			}
-			try
-			{
-				if (!postedFile.OpenReadStream().CanRead)
-				{
-					return false;
-				}
-				if (postedFile.Length < ImageMinimumBytes)
-				{
-					return false;
-				}
-				byte[] buffer = new byte[ImageMinimumBytes];
-				postedFile.OpenReadStream().Read(buffer, 0, ImageMinimumBytes);
-				string content = System.Text.Encoding.UTF8.GetString(buffer);
-				if (Regex.IsMatch(content, @"<script|<html|<head|<title|<body|<pre|<table|<a\s+href|<img|<plaintext|<cross\-domain\-policy",
-					RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Multiline))
-				{
-					return false;
-				}
-			}
-			catch (Exception)
+			var config = new ConfigurationBuilder()
+			   .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+			   .AddJsonFile("appsettings.json").Build();
+			var IamgeActive = config.GetSection(nameof(ImageActive)).Get<ImageActive>();
+			var path = Path.GetExtension(postedFile.FileName).ToLower();
+			if (path != IamgeActive.JPG && path != IamgeActive.PNG && path != IamgeActive.GIF &&
+			path != IamgeActive.JPEG && path != IamgeActive.BMP && path != IamgeActive.TIFF)
 			{
 				return false;
 			}
@@ -78,6 +53,49 @@ namespace DemoPhoto.Models
 			return Path.GetFileNameWithoutExtension(fileName)
 				+ "_Dino_" + Guid.NewGuid().ToString().Substring(0, 4)
 				+ Path.GetExtension(fileName);
+		}
+		/// <summary>
+		/// resize anh theo %
+		/// </summary>
+		/// <param name="file"></param>
+		/// <param name="path"></param>
+		/// <param name="percentage">ti le % toi da 100% cua anh</param>
+		public void ResizeImageCent(IFormFile file, string path, double percentage)
+		{
+			int width = 0;
+			int height = 0;
+			var checkFileImage = IsImage(file);
+			if (checkFileImage == true)
+			{
+				Image image = Image.FromStream(file.OpenReadStream(), true, true);
+				if (percentage > 1)
+				{
+					Console.WriteLine("% cua anh khong phu hop");
+				}
+				//tính kích thước cho ảnh mới theo tỷ lệ đưa vào vd: 0.4f = 40% cua anh goc
+				width = (int)(image.Width * percentage);
+				height = (int)(image.Height * percentage);
+				// Chuyển đổi các định dạng khác (bao gồm CMYK) sang RGB.
+				var newImage = new Bitmap(width, height);
+
+				using (var graphics = Graphics.FromImage(newImage))
+				{
+					// Vẽ hình ảnh ở kích thước được chỉ định với chế độ chất lượng được đặt thành HighQuality
+					graphics.CompositingQuality = CompositingQuality.HighSpeed;
+					graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+					graphics.CompositingMode = CompositingMode.SourceCopy;
+					//vẽ lại ảnh ban đầu lên bmp theo kích thước mới
+					graphics.DrawImage(image, 0, 0, width, height);
+					// save duong dan
+					newImage.Save(path);
+					//giải phóng tài nguyên mà graphic đang giữ
+					graphics.Dispose();
+				}
+			}
+			else
+			{
+				Console.WriteLine("đây không phải file ảnh");
+			}
 		}
 		/// <summary>
 		/// Resize Images
@@ -129,6 +147,8 @@ namespace DemoPhoto.Models
 					graphics.CompositingMode = CompositingMode.SourceCopy;
 					graphics.DrawImage(image, 0, 0, width, height);
 					newImage.Save(path);
+					//giải phóng tài nguyên mà graphic đang giữ
+					graphics.Dispose();
 				}
 			}
 			else
@@ -213,4 +233,3 @@ namespace DemoPhoto.Models
 		}
 	}
 }
-
